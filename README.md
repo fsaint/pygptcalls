@@ -9,6 +9,15 @@ import example_tools
 
 prompt = "Find all the mentions of people in the files in directory 'people'"
 gptcall(call_tool(example_tools, prompt))
+'''
+Output:
+In the provided text from "file1.txt", there are specific mentions of people or characters:
+
+1. **Ishmael** - The narrator who starts the text with "Call me Ishmael."
+2. **Cato** - Reference to Cato as a philosophical figure who throws himself upon his sword.
+
+These are the recognizable mentions of people within the excerpt. If you need any further analysis or additional data from other files or context, feel free to ask!
+'''
 ```
 
 
