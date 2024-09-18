@@ -105,7 +105,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None
         print(f"Error: {str(e)}")
 
 
-def call_tool(package, prompt, api_key = None):
+def gptcall(package, prompt, api_key = None):
     # Example usage with a built-in module like os
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     tools = generate_function_json(package)
@@ -129,6 +129,6 @@ if __name__ == '__main__':
     import example_tools
 
     prompt = "Find all the mentions of people in the files in directory 'people'"
-    print(call_tool(example_tools, prompt))
+    gptcall(call_tool(example_tools, prompt))
 
 
