@@ -1,5 +1,9 @@
 # ChatGPT Function Calling Python Library
 
+Write your functions in a package, call the chatgpt api, and GPTCal library handles all the internal details. 
+
+🚫 **Banned**: Don't pass nuclear launch functions or deadly robot command functions. 
+
 The **ChatGPT Function Calling Python Library** provides an easy-to-use interface for integrating Python functions with OpenAI's Function Calling API. It allows developers to interact with ChatGPT's conversational interface and call Python functions dynamically based on user inputs.
 
 1. Define a few functions that you want chatgpt to be able to call. Put them in a separate file or package. Use docstring to provide information on what the function does. For exmaple in a file `example_tools.py` we can have basic file manipulation functions for your local filesystem.
