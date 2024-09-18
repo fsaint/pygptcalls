@@ -1,6 +1,16 @@
 # ChatGPT Function Calling Python Library
 
-Write your functions in a package, call the chatgpt api, and GPTCal library handles all the internal details. 
+Write your functions in a package, call the chatgpt api, and GPTCal library handles all the internal details.
+
+```python
+from pygptcall import gptcall 
+# your functions in an imported package
+import example_tools
+
+prompt = "Find all the mentions of people in the files in directory 'people'"
+gptcall(call_tool(example_tools, prompt))
+```
+
 
 🚫 **Warning**: Don't pass nuclear launch functions or deadly robot command functions. 
 
