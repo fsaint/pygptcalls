@@ -21,7 +21,7 @@ These are the recognizable mentions of people within the excerpt. If you need an
 ```
 
 
-⚠️ **Warning:**: Don't pass nuclear launch functions or deadly robot command functions. 
+⚠️ **Warning:** Don't pass nuclear launch functions or deadly robot command functions. 
 
 The **ChatGPT Function Calling Python Library** provides an easy-to-use interface for integrating Python functions with OpenAI's Function Calling API. It allows developers to interact with ChatGPT's conversational interface and call Python functions dynamically based on user inputs.
 
