@@ -117,9 +117,9 @@ def gptcall(package, prompt, api_key = None):
         #print(message)
         if message.content is not None:
             return message.content
+        responses.append(message)
         for tool_call in calls:
             response = execute_function(example_tools, tool_call)
-            responses.append(message)
             responses.append(response)
         print(responses)
 #print(r)
