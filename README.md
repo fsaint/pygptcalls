@@ -87,3 +87,9 @@ In the provided text from "file1.txt", there are specific mentions of people or 
 
 These are the recognizable mentions of people within the excerpt. If you need any further analysis or additional data from other files or context, feel free to ask!
 ```
+
+
+** Run unit tests
+```
+python -m unittest discover -s tests
+```
