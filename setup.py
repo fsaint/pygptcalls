@@ -5,6 +5,8 @@ def parse_requirements(filename):
     with open(filename) as f:
         return f.read().splitlines()
 
+print(parse_requirements('requirements.txt'))
+
 setup(
     name="pygptcalls",  # Package name
     version="0.1.0",    # Version number
