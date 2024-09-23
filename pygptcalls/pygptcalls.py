@@ -162,11 +162,11 @@ def gptcall(package, prompt, api_key = None):
     # Example usage with a built-in module like os
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     tools = generate_function_json(package)
-    print(json.dumps(tools, indent=True))
+    #print(json.dumps(tools, indent=True))
     responses = []
     while True:
         #print("Iteration ------")
-        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = example_tools, messages = responses)
+        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses)
         #print(message)
         if message.content is not None:
             return message.content
