@@ -93,3 +93,10 @@ These are the recognizable mentions of people within the excerpt. If you need an
 ```
 python -m unittest discover -s tests
 ```
+
+## Install
+This library is maturing. Install with caution
+```
+pip install git+https://github.com/fsaint/pygptcalls
+```
+
