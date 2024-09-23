@@ -172,7 +172,7 @@ def gptcall(package, prompt, api_key = None):
             return message.content
         responses.append(message)
         for tool_call in calls:
-            response = execute_function(example_tools, tool_call)
+            response = execute_function(package, tool_call)
             responses.append(response)
         print(responses)
 #print(r)
