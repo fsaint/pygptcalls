@@ -1,13 +1,14 @@
 import unittest
 from pygptcalls import generate_function_json, extract_function_metadata, DocstringArgumentMismatchError
 import tests.sample_package as sample_package
+import tests.sample_package2 as sample_package2
 import inspect
 import json
 class TestGenerateFunction(unittest.TestCase):
     def test_some_function(self):
-        tools = generate_function_json(sample_package)
+        tools = generate_function_json(sample_package2)
         #print(json.dumps(tools, indent=True))
-        self.assertEqual(len(tools), 2)
+        self.assertEqual(len(tools), 1)
 
     def test_extract_function_metadata(self):
         r  = extract_function_metadata(sample_package.function_with_three_arguments)

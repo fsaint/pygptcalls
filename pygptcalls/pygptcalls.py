@@ -80,19 +80,19 @@ def generate_function_json(module) -> str:
     suitable for function calling in the ChatGPT API.
     '''
     functions = []
-    
     for name, obj in inspect.getmembers(module, inspect.isfunction):
         # Extract the function signature
         sig = inspect.signature(obj)
         params = []
-        
+        # docstring meta
+        docstring = extract_function_metadata(obj)
         # Iterate through the parameters
         required = []
         for param in sig.parameters.values():
             param_description = {
                 "name": param.name,
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
-                "description": f"Parameter {param.name}",
+                "description": docstring[param.name]['description'],
             }
             if param.default == inspect.Parameter.empty:
                 required.append(param.name)
@@ -158,7 +158,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None
         print(f"Error: {str(e)}")
 
 
-def gptcall(package, prompt, api_key = None):
+def gptcall(package, prompt, api_key = None, confirm_calls = False):
     # Example usage with a built-in module like os
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     tools = generate_function_json(package)
