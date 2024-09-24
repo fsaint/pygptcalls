@@ -127,7 +127,7 @@ def execute_function(package, tool_call):
     }
     return function_call_result_message
 
-def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None, package =  None, messages = []):
+def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None, package =  None, messages = [], debug = False):
     client = OpenAI(
         api_key=api_key,
     )
@@ -146,35 +146,36 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None
             model="gpt-4o-mini",#gpt-4o-mini
             tools=tools_json
         )
-        try:
-            print("Tool Calls:", response.choices[0].message.tool_calls)
-        except:
-            print("Failed")
         #return response.choices[0].message.content
-        print(f"Tokens used: {response.usage.total_tokens}")
+        if debug:
+            print(f"\033[1mTokens used\033[0m: {response.usage.total_tokens}")
         return (response.choices[0].message, response.choices[0].message.tool_calls)
     except Exception as e:
         print(e)
         print(f"Error: {str(e)}")
 
 
-def gptcall(package, prompt, api_key = None, confirm_calls = False):
+def gptcall(package, prompt, api_key = None, confirm_calls = False, debug = False):
     # Example usage with a built-in module like os
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     tools = generate_function_json(package)
-    #print(json.dumps(tools, indent=True))
+    if debug:
+        print("tools json")
+        print(json.dumps(tools, indent=True))
     responses = []
     while True:
         #print("Iteration ------")
-        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses)
+        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses, debug = debug)
         #print(message)
         if message.content is not None:
             return message.content
         responses.append(message)
         for tool_call in calls:
+            if debug:
+                args = ",".join([f"{key}='{value}'" for key, value in tool_call.function.parsed_arguments.items()])
+                print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
             response = execute_function(package, tool_call)
             responses.append(response)
-        print(responses)
 #print(r)
 #print(tools)
 
