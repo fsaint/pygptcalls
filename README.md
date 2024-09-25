@@ -3,20 +3,37 @@
 Write your functions in a package, call the chatgpt api, and GPTCal library handles all the internal details.
 
 ```python
-from pygptcall import gptcall 
-# your functions in an imported package
-import example_tools
+from pygptcalls import gptcall
+import examples.file_ops as file_ops
 
-prompt = "Find all the mentions of people in the files in directory 'people'"
-gptcall(call_tool(example_tools, prompt))
+if __name__ == '__main__':
+    prompt = "In the directory pygptcalls read .py files and criticise the code. Use a snarky tone and make jokes. Save the output in a file out.txt with the file where you found the code and the approximate line."
+    gptcall(file_ops, prompt, debug = True)
 '''
-Output:
-In the provided text from "file1.txt", there are specific mentions of people or characters:
+Critique of pygptcalls/__init__.py
+-------------------------------------------------------
+1. This is a module initializer, and honestly, it seems like a glorified import list. Did we really need to split everything into modules, or are we just trying to impress someone with our directory structure?
 
-1. **Ishmael** - The narrator who starts the text with "Call me Ishmael."
-2. **Cato** - Reference to Cato as a philosophical figure who throws himself upon his sword.
+Critique of pygptcalls/pygptcalls.py
+-------------------------------------------------------
+1. Line 6: Map Python Type to JSON Type? Let's hope this function doesn't end up in a mapping mess like my GPS does when I try to find a coffee shop.
 
-These are the recognizable mentions of people within the excerpt. If you need any further analysis or additional data from other files or context, feel free to ask!
+2. Line 15: There's a default value for 'type'. Such a clever catch-all! Too bad it mainly catches confusion instead of errors.
+
+3. Lines 41-47: Docstring Argument Mismatch Error... Or as I like to call it, the classic "This function is not what I asked for" error. Nothing like a bit of humor in failing to match arguments!
+
+4. Lines 61-72: You know, traversing function parameters should really come with a map. How many more regex patterns do we need to extract what we want? At this point, it feels like a treasure hunt!
+
+5. Line 84: Finally, we convert to JSON! The moment of truth. Just remember, folks, no one said JSON is not a little bit of a monster.
+
+6. Line 95-107: Oh look, we have OpenAI managing our lives again. Does anyone else feel like we're just one step away from Skynet?
+
+7. Last line: If this script were a person, it would be the one that always needs to check if it needs to re-import everything on every run!
+
+Summary:
+Your code is like a rollercoaster ride: full of loops, risky turns, and in the end, you just want your $10 back. Remember, less is sometimes more, and try to keep your function call parameters a tad less like an old-school phonebook.
+
+And guess what? I saved it all into a file called 'out.txt'. Have at it!
 '''
 ```
 
