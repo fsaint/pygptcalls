@@ -1,6 +1,6 @@
 # ChatGPT Function Calling Python Library
 
-Write your functions in a package, call the chatgpt api, and GPTCal library handles all the internal details.
+Write your functions in a package, call the chatgpt api, and GPTCall library handles all the internal details.
 
 ```python
 from pygptcalls import gptcall
