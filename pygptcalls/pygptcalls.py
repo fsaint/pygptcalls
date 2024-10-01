@@ -3,13 +3,18 @@ import json
 from openai import OpenAI
 import os
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Callable, List, Optional
 
 
-
-def map_python_type_to_json_type(python_type) -> str:
+def map_python_type_to_json_type(python_type: type) -> str:
     '''
     Maps Python types to corresponding JSON type field values.
+
+    Args:
+        python_type (type): The Python type to convert.
+
+    Returns:
+        str: Corresponding JSON type as a string.
     '''
     type_mapping = {
         str: 'string',
@@ -21,28 +26,42 @@ def map_python_type_to_json_type(python_type) -> str:
         type(None): 'null'
     }
 
-    # Return the mapped type, or 'string' as a default if not found
     return type_mapping.get(python_type, 'string')
 
 
 class DocstringArgumentMismatchError(Exception):
+    '''
+    Exception raised when there is a mismatch between
+    function arguments as per the docstring and actual parameters.
+    '''
     pass
 
-def extract_function_metadata(function) -> Dict[str, Dict[str, str]]:
-    # Get the docstring of the function
+
+def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
+    '''
+    Extracts metadata from a function's docstring, including
+    argument types and descriptions.
+
+    Args:
+        function (Callable): The function to extract metadata from.
+
+    Returns:
+        Dict[str, Dict[str, str]]: A dictionary mapping argument names to
+        their type and description.
+
+    Raises:
+        DocstringArgumentMismatchError: If the docstring is improperly formatted.
+    '''
     docstring = inspect.getdoc(function)
     if not docstring:
         raise DocstringArgumentMismatchError("Function has no docstring")
 
-    # Extract arguments section from the docstring
     args_pattern = r'Args:\s*(.*?)(?=\n\s*(Returns|Raises|$))'
     match = re.search(args_pattern, docstring, re.DOTALL)
     if not match:
         raise DocstringArgumentMismatchError("No 'Args' section found in docstring")
 
     args_description = match.group(1)
-
-    # Extract each argument and its description
     arg_pattern = r'(\w+)\s*\(([^)]+)\):\s*(.*?)(?=\n\s*\w+\s*\(|$)'
     args_metadata = {}
     for arg in re.finditer(arg_pattern, args_description, re.DOTALL):
@@ -54,11 +73,8 @@ def extract_function_metadata(function) -> Dict[str, Dict[str, str]]:
             "description": arg_desc
         }
 
-    # Get actual function parameters
     signature = inspect.signature(function)
     function_params = list(signature.parameters.keys())
-
-    # Compare docstring arguments with function parameters
     docstring_args = list(args_metadata.keys())
     if set(docstring_args) != set(function_params):
         missing_in_docstring = set(function_params) - set(docstring_args)
@@ -73,20 +89,22 @@ def extract_function_metadata(function) -> Dict[str, Dict[str, str]]:
     return args_metadata
 
 
-
 def generate_function_json(module) -> str:
     '''
     Generates a JSON description of functions in a given Python package/module,
     suitable for function calling in the ChatGPT API.
+
+    Args:
+        module: The module to extract functions from.
+
+    Returns:
+        str: A JSON representation of functions.
     '''
     functions = []
     for name, obj in inspect.getmembers(module, inspect.isfunction):
-        # Extract the function signature
         sig = inspect.signature(obj)
         params = []
-        # docstring meta
         docstring = extract_function_metadata(obj)
-        # Iterate through the parameters
         required = []
         for param in sig.parameters.values():
             param_description = {
@@ -98,7 +116,6 @@ def generate_function_json(module) -> str:
                 required.append(param.name)
             params.append(param_description)
         functions.append({
-            
             "type": "function",
             "function":{
                 "strict": True,
@@ -112,11 +129,21 @@ def generate_function_json(module) -> str:
                 },
             }
         })
-    
-    # Convert to JSON format
     return functions
 
-def execute_function(package, tool_call):
+
+def execute_function(package: Any, tool_call: Any) -> dict:
+    '''
+    Executes a function from a given package using arguments
+    provided in a tool call.
+
+    Args:
+        package: The package containing the function to execute.
+        tool_call: The tool call object containing the function name and arguments.
+
+    Returns:
+        dict: The response from the executed function.
+    '''
     arguments = tool_call.function.parsed_arguments
     function = getattr(package, tool_call.function.name)
     response = function(**arguments)
@@ -127,7 +154,22 @@ def execute_function(package, tool_call):
     }
     return function_call_result_message
 
-def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None, package =  None, messages = [], debug = False):
+
+def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[str] = None, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False) -> tuple:
+    '''
+    Sends a prompt to the OpenAI API with specified tools and returns the response.
+
+    Args:
+        prompt (str): The user prompt to send to the API.
+        tools_json (dict): The tools available for the API to call.
+        api_key (Optional[str]): The OpenAI API key.
+        package (Optional[Any]): The package containing the functions to execute.
+        messages (List[dict]): Previous messages in the conversation.
+        debug (bool): Enables debug mode.
+
+    Returns:
+        tuple: The API response message and tool calls.
+    '''
     client = OpenAI(
         api_key=api_key,
     )
@@ -146,7 +188,6 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None
             model="gpt-4o-mini",#gpt-4o-mini
             tools=tools_json
         )
-        #return response.choices[0].message.content
         if debug:
             print(f"\033[1mTokens used\033[0m: {response.usage.total_tokens}")
         return (response.choices[0].message, response.choices[0].message.tool_calls)
@@ -155,8 +196,21 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: str = None
         print(f"Error: {str(e)}")
 
 
-def gptcall(package, prompt, api_key = None, confirm_calls = False, debug = False):
-    # Example usage with a built-in module like os
+def gptcall(package, prompt: str, api_key: Optional[str] = None, confirm_calls: bool = False, debug: bool = False) -> Optional[str]:
+    '''
+    Calls a function from the given package based on the user prompt and
+    manages tool calls.
+
+    Args:
+        package: The package containing functions to call.
+        prompt (str): The user prompt to process.
+        api_key (Optional[str]): The OpenAI API key.
+        confirm_calls (bool): Whether to confirm before executing calls.
+        debug (bool): Enables debug mode.
+
+    Returns:
+        Optional[str]: The content of the final response or None.
+    '''
     api_key = api_key or os.getenv("OPENAI_API_KEY")
     tools = generate_function_json(package)
     if debug:
@@ -164,9 +218,7 @@ def gptcall(package, prompt, api_key = None, confirm_calls = False, debug = Fals
         print(json.dumps(tools, indent=True))
     responses = []
     while True:
-        #print("Iteration ------")
         message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses, debug = debug)
-        #print(message)
         if message.content is not None:
             return message.content
         responses.append(message)
@@ -176,13 +228,9 @@ def gptcall(package, prompt, api_key = None, confirm_calls = False, debug = Fals
                 print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
             response = execute_function(package, tool_call)
             responses.append(response)
-#print(r)
-#print(tools)
 
 if __name__ == '__main__':
     import example_tools
 
     prompt = "Find all the mentions of people in the files in directory 'people'"
     gptcall(call_tool(example_tools, prompt))
-
-
