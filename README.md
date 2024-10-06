@@ -91,7 +91,7 @@ from pygptcalls import gptcall
 import example_tools
 
 prompt = "Find all the mentions of people in the files in directory 'people'"
-gptcall(call_tool(example_tools, prompt))
+gptcall(gptcall(example_tools, prompt))
 ```
 
 In the example, the library will call the chatgpt api and execute the local calls until a response is generated. In this case I added the first chapter of moby dick to the `people` directory. The output was
