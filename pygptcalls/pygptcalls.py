@@ -2,8 +2,20 @@ import inspect
 import json
 from openai import OpenAI
 import os
+import sys
 import re
 from typing import Dict, Any, Callable, List, Optional
+
+
+
+# Get all functions in the current module
+def is_local_function(member, module):
+    # Checspect.isfunction(membk if the member is a function and is defined in the current module
+    if inspect.isfunction(member):
+        print(member)
+        print(member.__module__)
+    return inspect.isfunction(member) and member.__module__ == module.__name__
+
 
 
 def map_python_type_to_json_type(python_type: type) -> str:
@@ -53,13 +65,14 @@ def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
         DocstringArgumentMismatchError: If the docstring is improperly formatted.
     '''
     docstring = inspect.getdoc(function)
+    print(docstring)
     if not docstring:
-        raise DocstringArgumentMismatchError("Function has no docstring")
+        raise DocstringArgumentMismatchError(f"Function {function} has no docstring")
 
     args_pattern = r'Args:\s*(.*?)(?=\n\s*(Returns|Raises|$))'
     match = re.search(args_pattern, docstring, re.DOTALL)
     if not match:
-        raise DocstringArgumentMismatchError("No 'Args' section found in docstring")
+        raise DocstringArgumentMismatchError(f"No 'Args' section found in docstring function {function}")
 
     args_description = match.group(1)
     arg_pattern = r'(\w+)\s*\(([^)]+)\):\s*(.*?)(?=\n\s*\w+\s*\(|$)'
@@ -101,10 +114,11 @@ def generate_function_json(module) -> str:
         str: A JSON representation of functions.
     '''
     functions = []
-    for name, obj in inspect.getmembers(module, inspect.isfunction):
+    for name, obj in inspect.getmembers(module, lambda member: is_local_function(member, module)):
         sig = inspect.signature(obj)
         params = []
         docstring = extract_function_metadata(obj)
+        print(docstring)
         required = []
         for param in sig.parameters.values():
             param_description = {
