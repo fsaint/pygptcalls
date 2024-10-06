@@ -87,7 +87,7 @@ def over_write_file(content: str, path: str):
 2. Call the the prompt
    
 ```python
-from pygptcall import gptcall 
+from pygptcalls import gptcall 
 import example_tools
 
 prompt = "Find all the mentions of people in the files in directory 'people'"
