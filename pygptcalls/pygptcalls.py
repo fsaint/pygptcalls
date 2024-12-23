@@ -186,7 +186,7 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
             param_description = {
                 "name": param.name,
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
-                "description": docstring.get(param.name, {}).get('description', f"Parameter {param.name}"),
+                "description": docstring.get(param.name, {}).get('description', f"Parameter {param.name}") if docstring else "",
             }
             #if param.default == inspect.Parameter.empty:
             required.append(param.name)
