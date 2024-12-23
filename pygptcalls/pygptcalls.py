@@ -138,8 +138,8 @@ def generate_function_json(module) -> str:
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
                 "description": docstring[param.name]['description'],
             }
-            if param.default == inspect.Parameter.empty:
-                required.append(param.name)
+            #if param.default == inspect.Parameter.empty:
+            required.append(param.name)
             params.append(param_description)
         functions.append({
             "type": "function",
@@ -188,8 +188,8 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
                 "description": docstring.get(param.name, {}).get('description', f"Parameter {param.name}"),
             }
-            if param.default == inspect.Parameter.empty:
-                required.append(param.name)
+            #if param.default == inspect.Parameter.empty:
+            required.append(param.name)
             params.append(param_description)
 
         functions.append({
