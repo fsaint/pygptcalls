@@ -11,6 +11,11 @@ def function_with_three_arguments(name: str, age: int, lucky_numbers: List[int])
     '''
     return True
 
+def function_with_just_a_desc(name: str, age: int) -> bool:
+    '''
+    Simplre desc
+    '''
+    return False
 
 def bad_function1(name: str, age: int) -> bool:
     '''

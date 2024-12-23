@@ -83,7 +83,7 @@ def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
     args_pattern = r'Args:\s*(.*?)(?=\n\s*(Returns|Raises|$))'
     match = re.search(args_pattern, docstring, re.DOTALL)
     if not match and number_of_arguments(function) != 0:
-        raise DocstringArgumentMismatchError(f"No 'Args' section found in docstring function {function}")
+        return None
     args_metadata = {}
     if match:
         args_description = match.group(1)

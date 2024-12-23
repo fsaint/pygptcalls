@@ -25,6 +25,8 @@ class TestGenerateFunction(unittest.TestCase):
     def test_function_no_arguments(self):
          r  = extract_function_metadata(sample_package2.function_with_no_arguments)
         
+    def test_function_no_strutuded_pydoc(self):
+         r  = extract_function_metadata(sample_package.function_with_just_a_desc)
         
     
 if __name__ == '__main__':
