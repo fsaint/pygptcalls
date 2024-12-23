@@ -11,7 +11,7 @@ setup(
     author="@fsaint",  # Your name or the author's name
     author_email="fsaint@gmail.com",  # Your email address
     url="https://github.com/fsaint/pygptcalls",  # URL to your GitHub repo (optional)
-    packages=['pygptcalls','pygptcalls.tools'],
+    packages=find_packages(),
     install_requires=['openai>1.46.0,<2.0.0', 'pydantic==2.9.2'],
     classifiers=[
         'Programming Language :: Python :: 3',
