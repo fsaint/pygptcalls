@@ -22,7 +22,7 @@ class TestGenerateFunction(unittest.TestCase):
         except:
             self.fail()
 
-    def Atest_function_no_arguments(self):
+    def test_function_no_arguments(self):
          r  = extract_function_metadata(sample_package2.function_with_no_arguments)
         
         
