@@ -78,7 +78,7 @@ def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
     docstring = inspect.getdoc(function)
     print(docstring)
     if not docstring:
-        raise DocstringArgumentMismatchError(f"Function {function} has no docstring")
+        return None
 
     args_pattern = r'Args:\s*(.*?)(?=\n\s*(Returns|Raises|$))'
     match = re.search(args_pattern, docstring, re.DOTALL)
