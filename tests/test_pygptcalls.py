@@ -7,8 +7,7 @@ import json
 class TestGenerateFunction(unittest.TestCase):
     def test_some_function(self):
         tools = generate_function_json(sample_package2)
-        #print(json.dumps(tools, indent=True))
-        self.assertEqual(len(tools), 1)
+        self.assertEqual(len(tools), 2)
 
     def test_extract_function_metadata(self):
         r  = extract_function_metadata(sample_package.function_with_three_arguments)
@@ -22,6 +21,10 @@ class TestGenerateFunction(unittest.TestCase):
             pass
         except:
             self.fail()
+
+    def Atest_function_no_arguments(self):
+         r  = extract_function_metadata(sample_package2.function_with_no_arguments)
+        
         
     
 if __name__ == '__main__':

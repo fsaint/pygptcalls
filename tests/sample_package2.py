@@ -11,3 +11,10 @@ def function_with_three_arguments(name: str, age: int, lucky_numbers: List[int])
     '''
     return True
 
+
+def function_with_no_arguments() -> bool:
+    '''
+    Returns:
+        bool: If the person is in luck today.
+    '''
+    return True

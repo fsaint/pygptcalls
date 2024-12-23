@@ -49,6 +49,17 @@ class DocstringArgumentMismatchError(Exception):
     pass
 
 
+def number_of_arguments(func):
+    # Get the function's signature
+    sig = inspect.signature(func)
+
+    # Get the number of arguments
+    return len([
+        param for param in sig.parameters.values() 
+        if param.default == inspect.Parameter.empty and param.kind in 
+        (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY)
+    ]) 
+
 def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
     '''
     Extracts metadata from a function's docstring, including
@@ -71,20 +82,20 @@ def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
 
     args_pattern = r'Args:\s*(.*?)(?=\n\s*(Returns|Raises|$))'
     match = re.search(args_pattern, docstring, re.DOTALL)
-    if not match:
+    if not match and number_of_arguments(function) != 0:
         raise DocstringArgumentMismatchError(f"No 'Args' section found in docstring function {function}")
-
-    args_description = match.group(1)
-    arg_pattern = r'(\w+)\s*\(([^)]+)\):\s*(.*?)(?=\n\s*\w+\s*\(|$)'
     args_metadata = {}
-    for arg in re.finditer(arg_pattern, args_description, re.DOTALL):
-        arg_name = arg.group(1)
-        arg_type = arg.group(2)
-        arg_desc = arg.group(3).strip()
-        args_metadata[arg_name] = {
-            "type": arg_type,
-            "description": arg_desc
-        }
+    if match:
+        args_description = match.group(1)
+        arg_pattern = r'(\w+)\s*\(([^)]+)\):\s*(.*?)(?=\n\s*\w+\s*\(|$)'
+        for arg in re.finditer(arg_pattern, args_description, re.DOTALL):
+            arg_name = arg.group(1)
+            arg_type = arg.group(2)
+            arg_desc = arg.group(3).strip()
+            args_metadata[arg_name] = {
+                "type": arg_type,
+                "description": arg_desc
+            }
 
     signature = inspect.signature(function)
     function_params = list(signature.parameters.keys())
