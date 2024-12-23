@@ -231,7 +231,7 @@ def execute_function( tool_call: Any, package: Any = None, functions: List[Calla
             if func.__name__ == tool_call.function.name:
                 function = func
                 break
-    if func is None:
+    if function is None:
         raise
             
     response = function(**arguments)
