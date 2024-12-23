@@ -243,7 +243,7 @@ def execute_function( tool_call: Any, package: Any = None, functions: List[Calla
     return function_call_result_message
 
 
-def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[str] = None, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False) -> tuple:
+def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[str] = None, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False, system: str = None) -> tuple:
     '''
     Sends a prompt to the OpenAI API with specified tools and returns the response.
 
@@ -266,7 +266,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[s
             messages=[
                 {
                     "role": "system", 
-                    "content":  "You are a helpful assistant."
+                    "content":  system
                 },
                 {
                     "role": "user",
@@ -284,7 +284,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[s
         print(f"Error: {str(e)}")
 
 
-def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_calls: bool = False, debug: bool = False, functions: List[Callable] = None) -> Optional[str]:
+def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_calls: bool = False, debug: bool = False, functions: List[Callable] = None, system = "You are a helpful assistant.") -> Optional[str]:
     '''
     Calls a function from the given package based on the user prompt and
     manages tool calls.
@@ -309,7 +309,7 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_
         print(json.dumps(tools, indent=True))
     responses = []
     while True:
-        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses, debug = debug)
+        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses, debug = debug, system=system)
         if message.content is not None:
             return message.content
         responses.append(message)
