@@ -5,8 +5,7 @@ import os
 import sys
 import re
 from typing import Dict, Any, Callable, List, Optional
-
-
+from datetime import datetime
 
 # Get all functions in the current module
 def is_local_function(member, module):
@@ -209,7 +208,10 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
 
     return functions
 
-
+def custom_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()  # Convert datetime to ISO 8601 string
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 def execute_function( tool_call: Any, package: Any = None, functions: List[Callable] = None) -> dict:
     '''
@@ -237,7 +239,7 @@ def execute_function( tool_call: Any, package: Any = None, functions: List[Calla
     response = function(**arguments)
     function_call_result_message = {
         "role": "tool",
-        "content": json.dumps(response),
+        "content": json.dumps(response, default=custom_serializer),
         "tool_call_id": tool_call.id
     }
     return function_call_result_message
