@@ -113,6 +113,7 @@ def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
     return args_metadata
 
 
+
 def generate_function_json(module) -> str:
     '''
     Generates a JSON description of functions in a given Python package/module,
@@ -156,8 +157,61 @@ def generate_function_json(module) -> str:
         })
     return functions
 
+from typing import List, Callable
 
-def execute_function(package: Any, tool_call: Any) -> dict:
+def generate_function_json_from_list(functions_list: List[Callable]) -> str:
+    '''
+    Generates a JSON description of functions from a given list of functions,
+    suitable for function calling in the ChatGPT API.
+
+    Args:
+        functions_list: A list of function objects to describe.
+
+    Returns:
+        str: A JSON representation of the functions.
+    '''
+    functions = []
+
+    for obj in functions_list:
+        if not callable(obj):
+            raise ValueError(f"Object {obj} is not callable. Ensure all elements in the list are functions.")
+
+        name = obj.__name__
+        sig = inspect.signature(obj)
+        params = []
+        docstring = extract_function_metadata(obj)  # Ensure this helper is defined elsewhere
+        required = []
+
+        for param in sig.parameters.values():
+            param_description = {
+                "name": param.name,
+                "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
+                "description": docstring.get(param.name, {}).get('description', f"Parameter {param.name}"),
+            }
+            if param.default == inspect.Parameter.empty:
+                required.append(param.name)
+            params.append(param_description)
+
+        functions.append({
+            "type": "function",
+            "function": {
+                "strict": True,
+                "name": name,
+                "description": obj.__doc__.strip() if obj.__doc__ else f"Function {name}",
+                "parameters": {
+                    "type": "object",
+                    "properties": {param['name']: param for param in params},
+                    "required": required,
+                    "additionalProperties": False
+                },
+            }
+        })
+
+    return functions
+
+
+
+def execute_function( tool_call: Any, package: Any = None, functions: List[Callable] = None) -> dict:
     '''
     Executes a function from a given package using arguments
     provided in a tool call.
@@ -170,7 +224,16 @@ def execute_function(package: Any, tool_call: Any) -> dict:
         dict: The response from the executed function.
     '''
     arguments = tool_call.function.parsed_arguments
-    function = getattr(package, tool_call.function.name)
+    if package:
+        function = getattr(package, tool_call.function.name)
+    elif functions:
+        for func in functions:
+            if func.__name__ == tool_call.function.name:
+                function = func
+                break
+    if func is None:
+        raise
+            
     response = function(**arguments)
     function_call_result_message = {
         "role": "tool",
@@ -221,7 +284,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[s
         print(f"Error: {str(e)}")
 
 
-def gptcall(package, prompt: str, api_key: Optional[str] = None, confirm_calls: bool = False, debug: bool = False) -> Optional[str]:
+def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_calls: bool = False, debug: bool = False, functions: List[Callable] = None) -> Optional[str]:
     '''
     Calls a function from the given package based on the user prompt and
     manages tool calls.
@@ -237,7 +300,10 @@ def gptcall(package, prompt: str, api_key: Optional[str] = None, confirm_calls: 
         Optional[str]: The content of the final response or None.
     '''
     api_key = api_key or os.getenv("OPENAI_API_KEY")
-    tools = generate_function_json(package)
+    if package:
+        tools = generate_function_json(package)
+    elif functions:
+        tools = generate_function_json_from_list(functions)
     if debug:
         print("tools json")
         print(json.dumps(tools, indent=True))
@@ -251,7 +317,7 @@ def gptcall(package, prompt: str, api_key: Optional[str] = None, confirm_calls: 
             if debug:
                 args = ",".join([f"{key}='{value}'" for key, value in tool_call.function.parsed_arguments.items()])
                 print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
-            response = execute_function(package, tool_call)
+            response = execute_function(tool_call, package = package, functions=functions)
             responses.append(response)
 
 if __name__ == '__main__':

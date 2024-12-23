@@ -1,21 +1,20 @@
-Critique of pygptcalls Code
+Critique of 'pygptcalls/__init__.py':
+Line 1: Importing stuff, but did you really need to pull in everything from 'pygptcalls'? Is this Python or a game of 'catch 'em all'?
 
-1. File: __init__.py
-    - Oh look, a classic case of lazy imports! You really thought it was okay to just import everything? What are we, a Python module or a party?
+Critique of 'pygptcalls/pygptcalls.py':
+Line 12: 'def is_local_function(member, module):' - Okay, buddy, let’s check if it’s local, but if it runs away, just get it back with a nice cup of tea.
+Line 15: 'print(member)' - Debugging with print statements? Welcome to the dark ages!
+Line 64: 'docstring = inspect.getdoc(function)' - Can we just agree that if a function doesn’t have a docstring, it’s probably hiding something?
+Line 119: 'if func is None:' - Here you are checking if 'func' is None, but did you ask it how it feels? 😏
+Line 195: 'client.beta.chat.completions.parse' - So...are we parsing or just making conversation? I’m confused! 
 
-2. File: pygptcalls.py
-    - The comments in this code appear to be doing gymnastics. They are all over the place! Either stick to explaining the code or start designing Olympic routines. How about this one: `# Checspect.isfunction(membk if the member is a function and is defined in the current module`. I think a spell-check function might be more beneficial than that.
-    - We might wanna give `map_python_type_to_json_type` a trophy for participating. A default return of 'string'? Is this OpenAI or an identity crisis?
-    - Can you imagine the error messages? `DocstringArgumentMismatchError` sounds like a doctor diagnosing frustration. “I'm sorry, but your docstring doesn’t match.”
-    - And can we talk about the exit strategy? Jumping straight to exceptions feels like calling the fire brigade while you’re still in a burning building. 
-    - The usage of regex is haunting. Is this the type of horror film where the programmer gets cursed for eternity?
-    - `gptcall` should probably change its name to ``gonna-need-more-parameters`` if it keeps piling them on like this! And debug mode? More like debug *road* because we’re going nowhere if I have to stare at that output.
-    
-3. File: file_ops.py
-    - `find_files_with_extension` – more like `find-how-many-times-I-can-write-os.walk` because that is what you’ve done here. You’ve walked so much I think I need to make you an explorer!
-    - `read_file_to_string` – Ah, yes! Let’s make reading files too easy so no one ever really learns what goes on under the hood. Python is like your overprotective parent in this case.
+Critique of 'pygptcalls/tools/file_ops.py':
+Line 7: '"""' - Nice quote, can we get a movie based on this? 
+Line 8: 'Recursively find files...' - I see someone took their recursive functions too seriously. Let’s hope those files don’t end up in a black hole.
+Line 16: 'matched_files = []' - And here’s where we collect all the matches to ensure we won’t feel bad about missing anyone!
+Line 27: 'with open(file_path, 'r') as file:' - Should we start a campaign against the 'with' statement or just embrace this abomination?
 
-4. File: __init__.py (tools)
-    - A classic empty toolbox. I see this as the “look but don’t touch” section of your Wild West coding adventures. How about tossing in some tools instead of just the faint echo of a docstring? 
+Critique of 'pygptcalls/tools/__init__.py':
+Line 1: '"""' - You opened with a quote, now let’s see if you’ll end with a bang!
 
-Conclusion: Overall, there’s room for humor and some good ol’ fashioned code organization. Remember, code is like a joke – timing and clarity are everything! Let's polish off that humor and make this code shine!
+Overall: Worth a read for the entertainment value - that and to see what not to do in Python.
