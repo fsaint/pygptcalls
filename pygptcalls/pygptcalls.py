@@ -6,6 +6,7 @@ import sys
 import re
 from typing import Dict, Any, Callable, List, Optional
 from datetime import datetime
+import uuid
 
 # Get all functions in the current module
 def is_local_function(member, module):
@@ -211,6 +212,8 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
 def custom_serializer(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()  # Convert datetime to ISO 8601 string
+    if isinstance(obj, uuid.UUID):
+        return str(obj)  # Convert UUID to a string
     raise TypeError(f"Type {type(obj)} not serializable")
 
 def execute_function( tool_call: Any, package: Any = None, functions: List[Callable] = None) -> dict:
