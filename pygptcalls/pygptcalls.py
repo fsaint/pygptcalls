@@ -130,7 +130,6 @@ def generate_function_json(module) -> str:
         sig = inspect.signature(obj)
         params = []
         docstring = extract_function_metadata(obj)
-        print(docstring)
         required = []
         for param in sig.parameters.values():
             param_description = {
@@ -210,6 +209,9 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
     return functions
 
 def custom_serializer(obj):
+    '''
+    Custom function for json serialization of non-standard types.
+    '''
     if isinstance(obj, datetime):
         return obj.isoformat()  # Convert datetime to ISO 8601 string
     if isinstance(obj, uuid.UUID):
@@ -248,7 +250,27 @@ def execute_function( tool_call: Any, package: Any = None, functions: List[Calla
     return function_call_result_message
 
 
-def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[str] = None, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False, system: str = None) -> tuple:
+def format_oputput(client, text:str, response_format) -> Any:
+    system = """
+        Your job is to transforme the input that is a text input into a formated output.
+    """
+    response =  client.beta.chat.completions.parse(
+        messages=[
+        {
+            "role": "system", 
+            "content":  system
+        },
+        {
+            "role": "user",
+            "content": text
+        }],
+        response_format = response_format,
+        model="gpt-4o-mini",#gpt-4o-mini
+    )
+    return response
+
+
+def execute_openai_with_tools(client, prompt: str, tools_json: dict, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False, system: str = None) -> tuple:
     '''
     Sends a prompt to the OpenAI API with specified tools and returns the response.
 
@@ -263,9 +285,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[s
     Returns:
         tuple: The API response message and tool calls.
     '''
-    client = OpenAI(
-        api_key=api_key,
-    )
+    
     try:
         response =  client.beta.chat.completions.parse(
             messages=[
@@ -289,7 +309,7 @@ def execute_openai_with_tools(prompt: str, tools_json: dict, api_key: Optional[s
         print(f"Error: {str(e)}")
 
 
-def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_calls: bool = False, debug: bool = False, functions: List[Callable] = None, system = "You are a helpful assistant.") -> Optional[str]:
+def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, system = "You are a helpful assistant.", response_format = None) -> Optional[str]:
     '''
     Calls a function from the given package based on the user prompt and
     manages tool calls.
@@ -305,6 +325,9 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_
         Optional[str]: The content of the final response or None.
     '''
     api_key = api_key or os.getenv("OPENAI_API_KEY")
+    client = OpenAI(
+        api_key=api_key,
+    )
     if package:
         tools = generate_function_json(package)
     elif functions:
@@ -314,9 +337,12 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, confirm_
         print(json.dumps(tools, indent=True))
     responses = []
     while True:
-        message, calls = execute_openai_with_tools(prompt, tools_json=tools, api_key= api_key, package = package, messages = responses, debug = debug, system=system)
+        message, calls = execute_openai_with_tools(client, prompt, tools_json=tools, package = package, messages = responses, debug = debug, system=system)
         if message.content is not None:
-            return message.content
+            if response_format:
+                return format_oputput(client, message.content, response_format)
+            else:
+                return message.content
         responses.append(message)
         for tool_call in calls:
             if debug:

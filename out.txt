@@ -22,4 +22,22 @@ Critique of Python Code in pygptcalls:
 4. **File: pygptcalls/tools/__init__.py**
    - An empty docstring! Is something supposed to happen? Looks more like a placeholder for existential dread than useful documentation.
 
-To summarize, nice functionality—very solid! But come on, inject some personality into this code! It feels like a salad without dressing. Add some flair, humor, or creativity. Code should not only function but also entertain!
+To summarize, nice functionality—very solid! But come on, inject some personality into this code! It feels like a salad without dressing. Add some flair, humor, or creativity. Code should not only function but also entertain!File: pygptcalls/__init__.py
+Critique: This file is all imports and no action. Looks like it couldn't decide if it wanted to be a module or just take a long nap.
+
+File: pygptcalls/pygptcalls.py
+Critique: This file is a wild ride! You’ve got functions inside functions, and if that’s not a nesting doll of chaos, I don’t know what is. Who needs readability when you can have a complex spaghetti code?
+
+Line 9:       print(member.__module__)  # What does this even achieve? 'Look at me, I'm the module!'
+
+Line 65:  #if param.default == inspect.Parameter.empty:  # Commented out code, a developer's way of saying 'Maybe later.'
+
+Line 97:   print(e)  # Because clearly, logging to print is sufficient in 2023!
+
+Line 146:    #gpt-4o-mini  # What a strange way to hide your AI's name, like it’s a secret agent.
+
+File: pygptcalls/tools/file_ops.py
+Critique: This file actually makes sense! How refreshing! But does it read like a novel? Not quite. 'Reading a file' is a thrilling topic, said no one ever.
+
+File: pygptcalls/tools/__init__.py
+Critique: Ah, the classic tools init file. It’s just a plain string comment, which is basically saying ‘Hello, I exist!’ Nothing like a solid introduction to set the tone for the whole project.
