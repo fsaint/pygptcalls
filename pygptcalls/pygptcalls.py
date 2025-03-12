@@ -7,6 +7,23 @@ import re
 from typing import Dict, Any, Callable, List, Optional
 from datetime import datetime
 import uuid
+from typing import List, Literal
+from pydantic import BaseModel
+
+class Message(BaseModel):
+    role: Literal["system", "user", "assistant"]
+    content: str
+
+class ChatHistory(BaseModel):
+    messages: List[Message]
+    system_prompt: str
+
+    def to_chatgpt_json(self) -> List[Dict]:
+        chat_messages = self.messages.copy()
+        if self.system_prompt:
+            chat_messages.insert(0, Message(role="system", content=self.system_prompt))
+        return [message.dict() for message in chat_messages]
+
 
 # Get all functions in the current module
 def is_local_function(member, module):
@@ -270,7 +287,7 @@ def format_oputput(client, text:str, response_format) -> Any:
     return response
 
 
-def execute_openai_with_tools(client, prompt: str, tools_json: dict, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False, system: str = None) -> tuple:
+def execute_openai_with_tools(client, tools_json: dict, chat_history: ChatHistory | None, package: Optional[Any] = None, messages: List[dict] = [], debug: bool = False) -> tuple:
     '''
     Sends a prompt to the OpenAI API with specified tools and returns the response.
 
@@ -285,22 +302,15 @@ def execute_openai_with_tools(client, prompt: str, tools_json: dict, package: Op
     Returns:
         tuple: The API response message and tool calls.
     '''
-    
+    breakpoint()
+    messages = chat_history.to_chatgpt_json()
     try:
         response =  client.beta.chat.completions.parse(
-            messages=[
-                {
-                    "role": "system", 
-                    "content":  system
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ] + messages,
+                messages=messages,
             model="gpt-4o-mini",#gpt-4o-mini
-            tools=tools_json
+            tools=tools_json,
         )
+        
         if debug:
             print(f"\033[1mTokens used\033[0m: {response.usage.total_tokens}")
         return (response.choices[0].message, response.choices[0].message.tool_calls)
@@ -335,9 +345,59 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: b
     if debug:
         print("tools json")
         print(json.dumps(tools, indent=True))
+    chat_history = ChatHistory(
+        messages=[],
+        system_prompt=system
+    )
+    chat_history.messages.append(Message(role="user", content = prompt))
+    while True:
+        message, calls = execute_openai_with_tools(client, chat_history=chat_history,  tools_json=tools, package = package,  debug = debug)
+        if message.content is not None:
+            if response_format:
+                return format_oputput(client, message.content, response_format)
+            else:
+                return message.content
+        #responses.append(message)
+        chat_history.messages.append(Message(role=message['role'], content=message['content']))
+        for tool_call in calls:
+            if debug:
+                args = ",".join([f"{key}='{value}'" for key, value in tool_call.function.parsed_arguments.items()])
+                print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
+            response = execute_function(tool_call, package = package, functions=functions)
+            #responses.append(response)
+            chat_history.messages.append(Message(role=response['role'], content=response['content']))
+
+def gptcall_chat(hitory: ChatHistory, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, response_format = None) -> Optional[str]:
+    '''
+    Calls a function from the given package based on the user prompt and
+    manages tool calls.
+
+    Args:
+        package: The package containing functions to call.
+        prompt (str): The user prompt to process.
+        api_key (Optional[str]): The OpenAI API key.
+        confirm_calls (bool): Whether to confirm before executing calls.
+        debug (bool): Enables debug mode.
+
+    Returns:
+        Optional[str]: The content of the final response or None.
+    '''
+    api_key = api_key or os.getenv("OPENAI_API_KEY")
+    client = OpenAI(
+        api_key=api_key,
+    )
+    if package:
+        tools = generate_function_json(package)
+    elif functions:
+        tools = generate_function_json_from_list(functions)
+    else:
+        tools = []
+    if debug:
+        print("tools json")
+        print(json.dumps(tools, indent=True))
     responses = []
     while True:
-        message, calls = execute_openai_with_tools(client, prompt, tools_json=tools, package = package, messages = responses, debug = debug, system=system)
+        message, calls = execute_openai_with_tools(client, chat_history=hitory, tools_json=tools, package = package, messages = responses, debug = debug)
         if message.content is not None:
             if response_format:
                 return format_oputput(client, message.content, response_format)
@@ -352,7 +412,5 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: b
             responses.append(response)
 
 if __name__ == '__main__':
-    import example_tools
+    pass
 
-    prompt = "Find all the mentions of people in the files in directory 'people'"
-    gptcall(call_tool(example_tools, prompt))
