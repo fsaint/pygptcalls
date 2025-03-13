@@ -11,8 +11,10 @@ from typing import List, Literal
 from pydantic import BaseModel
 
 class Message(BaseModel):
-    role: Literal["system", "user", "assistant"]
-    content: str
+    role: Literal["system", "user", "assistant", "tool"]
+    content: str | None
+    tool_call_id: str | None = None
+    tool_calls: Any | None = None
 
 class ChatHistory(BaseModel):
     messages: List[Message]
@@ -302,7 +304,6 @@ def execute_openai_with_tools(client, tools_json: dict, chat_history: ChatHistor
     Returns:
         tuple: The API response message and tool calls.
     '''
-    breakpoint()
     messages = chat_history.to_chatgpt_json()
     try:
         response =  client.beta.chat.completions.parse(
@@ -349,7 +350,7 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: b
         messages=[],
         system_prompt=system
     )
-    chat_history.messages.append(Message(role="user", content = prompt))
+    chat_history.messages.append(Message(role=message.role, content=message.content, tool_calls = [json.loads(x.model_dump_json()) for x in message.tool_calls]))
     while True:
         message, calls = execute_openai_with_tools(client, chat_history=chat_history,  tools_json=tools, package = package,  debug = debug)
         if message.content is not None:
@@ -365,9 +366,8 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: b
                 print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
             response = execute_function(tool_call, package = package, functions=functions)
             #responses.append(response)
-            chat_history.messages.append(Message(role=response['role'], content=response['content']))
-
-def gptcall_chat(hitory: ChatHistory, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, response_format = None) -> Optional[str]:
+            chat_history.messages.append(Message(role = response['role'], content = response['content'], tool_call_id = response['tool_call_id']))
+def gptcall_chat(history: ChatHistory, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, response_format = None) -> Optional[str]:
     '''
     Calls a function from the given package based on the user prompt and
     manages tool calls.
@@ -395,21 +395,24 @@ def gptcall_chat(hitory: ChatHistory, package = None, api_key: Optional[str] = N
     if debug:
         print("tools json")
         print(json.dumps(tools, indent=True))
-    responses = []
+    
     while True:
-        message, calls = execute_openai_with_tools(client, chat_history=hitory, tools_json=tools, package = package, messages = responses, debug = debug)
+        message, calls = execute_openai_with_tools(client, chat_history=history, tools_json=tools, package = package, debug = debug)
         if message.content is not None:
             if response_format:
                 return format_oputput(client, message.content, response_format)
             else:
                 return message.content
-        responses.append(message)
+        
+        
+        history.messages.append(Message(role=message.role, content=message.content, tool_calls = [json.loads(x.model_dump_json()) for x in message.tool_calls]))
+        
         for tool_call in calls:
             if debug:
                 args = ",".join([f"{key}='{value}'" for key, value in tool_call.function.parsed_arguments.items()])
                 print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
             response = execute_function(tool_call, package = package, functions=functions)
-            responses.append(response)
+            history.messages.append(Message(role = response['role'], content = response['content'], tool_call_id = response['tool_call_id']))
 
 if __name__ == '__main__':
     pass
