@@ -4,11 +4,12 @@ from openai import OpenAI
 import os
 import sys
 import re
-from typing import Dict, Any, Callable, List, Optional
+from typing import Dict, Any, Callable, List, Optional, Union
 from datetime import datetime
 import uuid
-from typing import List, Literal
+from typing import List, Literal, Dict, get_origin, get_args
 from pydantic import BaseModel
+import docstring_parser
 
 class Message(BaseModel):
     role: Literal["system", "user", "assistant", "tool"]
@@ -36,6 +37,9 @@ def is_local_function(member, module):
     return inspect.isfunction(member) and member.__module__ == module.__name__
 
 
+def is_optional_type(typ) -> bool:
+    return get_origin(typ) is Union and type(None) in get_args(typ)
+
 
 def map_python_type_to_json_type(python_type: type) -> str:
     '''
@@ -47,6 +51,9 @@ def map_python_type_to_json_type(python_type: type) -> str:
     Returns:
         str: Corresponding JSON type as a string.
     '''
+    if is_optional_type(python_type):
+        python_type = python_type.__args__[0]
+    origin = get_origin(python_type) or python_type
     type_mapping = {
         str: 'string',
         int: 'integer',
@@ -57,7 +64,7 @@ def map_python_type_to_json_type(python_type: type) -> str:
         type(None): 'null'
     }
 
-    return type_mapping.get(python_type, 'string')
+    return type_mapping.get(origin, 'string')
 
 
 class DocstringArgumentMismatchError(Exception):
@@ -79,59 +86,80 @@ def number_of_arguments(func):
         (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.POSITIONAL_ONLY)
     ]) 
 
-def extract_function_metadata(function: Callable) -> Dict[str, Dict[str, str]]:
-    '''
-    Extracts metadata from a function's docstring, including
-    argument types and descriptions.
+def extract_function_metadata(function: Callable) -> Optional[Dict[str, Dict[str, str]]]:
+    """
+    Extracts metadata from a function's signature and docstring. Types are taken from the signature,
+    while descriptions are taken from the docstring.
 
     Args:
         function (Callable): The function to extract metadata from.
 
     Returns:
-        Dict[str, Dict[str, str]]: A dictionary mapping argument names to
-        their type and description.
+        Optional[Dict[str, Dict[str, str]]]: A dictionary mapping argument names to
+        their type and description, or None if no docstring is found.
 
     Raises:
         DocstringArgumentMismatchError: If the docstring is improperly formatted.
-    '''
+    """
     docstring = inspect.getdoc(function)
-    print(docstring)
     if not docstring:
         return None
 
-    args_pattern = r'Args:\s*(.*?)(?=\n\s*(Returns|Raises|$))'
-    match = re.search(args_pattern, docstring, re.DOTALL)
-    if not match and number_of_arguments(function) != 0:
-        return None
-    args_metadata = {}
-    if match:
-        args_description = match.group(1)
-        arg_pattern = r'(\w+)\s*\(([^)]+)\):\s*(.*?)(?=\n\s*\w+\s*\(|$)'
-        for arg in re.finditer(arg_pattern, args_description, re.DOTALL):
-            arg_name = arg.group(1)
-            arg_type = arg.group(2)
-            arg_desc = arg.group(3).strip()
-            args_metadata[arg_name] = {
-                "type": arg_type,
-                "description": arg_desc
-            }
-
+    # Get parameter types from function signature
     signature = inspect.signature(function)
-    function_params = list(signature.parameters.keys())
-    docstring_args = list(args_metadata.keys())
-    if set(docstring_args) != set(function_params):
-        missing_in_docstring = set(function_params) - set(docstring_args)
-        extra_in_docstring = set(docstring_args) - set(function_params)
+    
+    # Parse docstring for descriptions
+    parsed_doc = docstring_parser.parse(docstring)
+    
+    # Create a mapping of parameter names to their descriptions from docstring
+    param_descriptions = {
+        param.arg_name: param.description.strip() if param.description else ""
+        for param in parsed_doc.params
+    }
+    
+    # Build args_metadata primarily from signature, with descriptions from docstring
+    args_metadata = {}
+    for param_name, param in signature.parameters.items():
+        param_type = "unknown"
+        annotation = param.annotation
+        
+        # If the type is optional, use the inner type
+        if param.annotation != inspect.Parameter.empty:
+            if is_optional_type(param.annotation):
+                # Get the inner type (first non-None type)
+                inner_types = [t for t in get_args(param.annotation) if t is not type(None)]
+                if inner_types:
+                    annotation = inner_types[0]
+            
+            if hasattr(annotation, "__name__"):
+                param_type = annotation.__name__
+            else:
+                # Handle complex types like Union, List, etc.
+                param_type = str(annotation).replace("typing.", "")
+                
+        args_metadata[param_name] = {
+            "type": param_type,
+            "description": param_descriptions.get(param_name, "")
+        }
+
+    # Validate function signature matches extracted docstring arguments
+    function_params = set(inspect.signature(function).parameters.keys())
+    docstring_args = set(args_metadata.keys())
+
+    if function_params != docstring_args:
+        missing_in_docstring = function_params - docstring_args
+        extra_in_docstring = docstring_args - function_params
         error_msg = []
+
         if missing_in_docstring:
             error_msg.append(f"Arguments missing in docstring: {', '.join(missing_in_docstring)}")
         if extra_in_docstring:
             error_msg.append(f"Extra arguments in docstring: {', '.join(extra_in_docstring)}")
+
         raise DocstringArgumentMismatchError(". ".join(error_msg))
 
+    print(args_metadata)
     return args_metadata
-
-
 
 def generate_function_json(module) -> str:
     '''
@@ -157,7 +185,8 @@ def generate_function_json(module) -> str:
                 "description": docstring[param.name]['description'],
             }
             #if param.default == inspect.Parameter.empty:
-            required.append(param.name)
+            if not is_optional_type(param.annotation):
+                required.append(param.name)
             params.append(param_description)
         functions.append({
             "type": "function",
@@ -201,6 +230,7 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
         required = []
 
         for param in sig.parameters.values():
+            print(param.name, param.annotation,  map_python_type_to_json_type(param.annotation))
             param_description = {
                 "name": param.name,
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
@@ -209,6 +239,7 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
             #if param.default == inspect.Parameter.empty:
             required.append(param.name)
             params.append(param_description)
+        breakpoint()
 
         functions.append({
             "type": "function",
@@ -416,4 +447,3 @@ def gptcall_chat(history: ChatHistory, package = None, api_key: Optional[str] = 
 
 if __name__ == '__main__':
     pass
-
