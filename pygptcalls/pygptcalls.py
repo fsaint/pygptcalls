@@ -158,7 +158,7 @@ def extract_function_metadata(function: Callable) -> Optional[Dict[str, Dict[str
 
         raise DocstringArgumentMismatchError(". ".join(error_msg))
 
-    print(args_metadata)
+    #print(args_metadata)
     return args_metadata
 
 def generate_function_json(module) -> str:
@@ -185,8 +185,8 @@ def generate_function_json(module) -> str:
                 "description": docstring[param.name]['description'],
             }
             #if param.default == inspect.Parameter.empty:
-            if not is_optional_type(param.annotation):
-                required.append(param.name)
+            #if not is_optional_type(param.annotation):
+            required.append(param.name)
             params.append(param_description)
         functions.append({
             "type": "function",
@@ -230,17 +230,18 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
         required = []
 
         for param in sig.parameters.values():
-            print(param.name, param.annotation,  map_python_type_to_json_type(param.annotation))
             param_description = {
                 "name": param.name,
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
                 "description": docstring.get(param.name, {}).get('description', f"Parameter {param.name}") if docstring else "",
             }
+            #"additionalProperties": true
             #if param.default == inspect.Parameter.empty:
+            #if not is_optional_type(param.annotation):
             required.append(param.name)
+            #required.append(param.name)
             params.append(param_description)
-        breakpoint()
-
+        
         functions.append({
             "type": "function",
             "function": {
@@ -374,9 +375,9 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: b
         tools = generate_function_json(package)
     elif functions:
         tools = generate_function_json_from_list(functions)
-    if debug:
-        print("tools json")
-        print(json.dumps(tools, indent=True))
+    #if debug:
+    #    print("tools json:")
+    #    print(json.dumps(tools, indent=True))
     chat_history = ChatHistory(
         messages=[],
         system_prompt=system
@@ -423,9 +424,9 @@ def gptcall_chat(history: ChatHistory, package = None, api_key: Optional[str] = 
         tools = generate_function_json_from_list(functions)
     else:
         tools = []
-    if debug:
-        print("tools json")
-        print(json.dumps(tools, indent=True))
+    #if debug:
+    #    print("tools json")
+    #    print(json.dumps(tools, indent=True))
     
     while True:
         message, calls = execute_openai_with_tools(client, chat_history=history, tools_json=tools, package = package, debug = debug)
