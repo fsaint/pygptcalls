@@ -28,12 +28,17 @@ class ChatHistory(BaseModel):
         return [message.dict() for message in chat_messages]
 
 
-# Get all functions in the current module
-def is_local_function(member, module):
-    # Checspect.isfunction(membk if the member is a function and is defined in the current module
-    if inspect.isfunction(member):
-        print(member)
-        print(member.__module__)
+def is_local_function(member, module) -> bool:
+    """
+    Check if a member is a function defined in the current module.
+    
+    Args:
+        member: The member to check.
+        module: The module to check against.
+        
+    Returns:
+        bool: True if the member is a function defined in the current module.
+    """
     return inspect.isfunction(member) and member.__module__ == module.__name__
 
 
@@ -184,9 +189,9 @@ def generate_function_json(module) -> str:
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
                 "description": docstring[param.name]['description'],
             }
-            #if param.default == inspect.Parameter.empty:
-            #if not is_optional_type(param.annotation):
-            required.append(param.name)
+            # Only add to required if parameter has no default value and is not optional
+            if param.default == inspect.Parameter.empty and not is_optional_type(param.annotation):
+                required.append(param.name)
             params.append(param_description)
         functions.append({
             "type": "function",
@@ -235,11 +240,9 @@ def generate_function_json_from_list(functions_list: List[Callable]) -> str:
                 "type": "string" if param.annotation == inspect.Parameter.empty else map_python_type_to_json_type(param.annotation),
                 "description": docstring.get(param.name, {}).get('description', f"Parameter {param.name}") if docstring else "",
             }
-            #"additionalProperties": true
-            #if param.default == inspect.Parameter.empty:
-            #if not is_optional_type(param.annotation):
-            required.append(param.name)
-            #required.append(param.name)
+            # Only add to required if parameter has no default value and is not optional
+            if param.default == inspect.Parameter.empty and not is_optional_type(param.annotation):
+                required.append(param.name)
             params.append(param_description)
         
         functions.append({
@@ -269,7 +272,7 @@ def custom_serializer(obj):
         return str(obj)  # Convert UUID to a string
     raise TypeError(f"Type {type(obj)} not serializable")
 
-def execute_function( tool_call: Any, package: Any = None, functions: List[Callable] = None) -> dict:
+def execute_function(tool_call: Any, package: Any = None, functions: List[Callable] = None) -> dict:
     '''
     Executes a function from a given package using arguments
     provided in a tool call.
@@ -277,22 +280,40 @@ def execute_function( tool_call: Any, package: Any = None, functions: List[Calla
     Args:
         package: The package containing the function to execute.
         tool_call: The tool call object containing the function name and arguments.
+        functions: List of functions to search for the function to execute.
 
     Returns:
         dict: The response from the executed function.
+        
+    Raises:
+        AttributeError: If the function is not found in the package.
+        ValueError: If the function is not found in the functions list.
     '''
     arguments = tool_call.function.parsed_arguments
+    function = None
+    
     if package:
-        function = getattr(package, tool_call.function.name)
+        try:
+            function = getattr(package, tool_call.function.name)
+        except AttributeError:
+            raise AttributeError(f"Function '{tool_call.function.name}' not found in package {package.__name__}")
     elif functions:
         for func in functions:
             if func.__name__ == tool_call.function.name:
                 function = func
                 break
-    if function is None:
-        raise
+        if function is None:
+            available_functions = [f.__name__ for f in functions]
+            raise ValueError(f"Function '{tool_call.function.name}' not found in functions list. Available functions: {available_functions}")
+    else:
+        raise ValueError("Either 'package' or 'functions' must be provided")
             
-    response = function(**arguments)
+    try:
+        response = function(**arguments)
+    except Exception as e:
+        # Return error as tool response instead of crashing
+        response = f"Error executing function {tool_call.function.name}: {str(e)}"
+    
     function_call_result_message = {
         "role": "tool",
         "content": json.dumps(response, default=custom_serializer),
@@ -301,22 +322,34 @@ def execute_function( tool_call: Any, package: Any = None, functions: List[Calla
     return function_call_result_message
 
 
-def format_oputput(client, text:str, response_format) -> Any:
-    system = """
-        Your job is to transforme the input that is a text input into a formated output.
+def format_output(client, text: str, response_format) -> Any:
     """
-    response =  client.beta.chat.completions.parse(
+    Formats the input text using the specified response format.
+    
+    Args:
+        client: The OpenAI client instance.
+        text: The input text to format.
+        response_format: The desired response format.
+        
+    Returns:
+        The formatted response.
+    """
+    system = """
+        Your job is to transform the input text into a formatted output.
+    """
+    response = client.beta.chat.completions.parse(
         messages=[
-        {
-            "role": "system", 
-            "content":  system
-        },
-        {
-            "role": "user",
-            "content": text
-        }],
-        response_format = response_format,
-        model="gpt-4o-mini",#gpt-4o-mini
+            {
+                "role": "system", 
+                "content": system
+            },
+            {
+                "role": "user",
+                "content": text
+            }
+        ],
+        response_format=response_format,
+        model="gpt-4o-mini",
     )
     return response
 
@@ -352,17 +385,20 @@ def execute_openai_with_tools(client, tools_json: dict, chat_history: ChatHistor
         print(f"Error: {str(e)}")
 
 
-def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, system = "You are a helpful assistant.", response_format = None) -> Optional[str]:
+def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, system = "You are a helpful assistant.", response_format = None, max_iterations: int = 10) -> Optional[str]:
     '''
     Calls a function from the given package based on the user prompt and
     manages tool calls.
 
     Args:
-        package: The package containing functions to call.
         prompt (str): The user prompt to process.
+        package: The package containing functions to call.
         api_key (Optional[str]): The OpenAI API key.
-        confirm_calls (bool): Whether to confirm before executing calls.
         debug (bool): Enables debug mode.
+        functions (List[Callable]): List of functions to make available.
+        system (str): System prompt for the conversation.
+        response_format: Response format for structured output.
+        max_iterations (int): Maximum number of function call iterations to prevent infinite loops.
 
     Returns:
         Optional[str]: The content of the final response or None.
@@ -375,30 +411,45 @@ def gptcall(prompt: str, package = None, api_key: Optional[str] = None, debug: b
         tools = generate_function_json(package)
     elif functions:
         tools = generate_function_json_from_list(functions)
-    #if debug:
-    #    print("tools json:")
-    #    print(json.dumps(tools, indent=True))
+    else:
+        tools = []
+        
     chat_history = ChatHistory(
-        messages=[],
+        messages=[Message(role="user", content=prompt)],
         system_prompt=system
     )
-    chat_history.messages.append(Message(role=message.role, content=message.content, tool_calls = [json.loads(x.model_dump_json()) for x in message.tool_calls]))
-    while True:
+    
+    iteration_count = 0
+    while iteration_count < max_iterations:
+        iteration_count += 1
+        
         message, calls = execute_openai_with_tools(client, chat_history=chat_history,  tools_json=tools, package = package,  debug = debug)
         if message.content is not None:
             if response_format:
-                return format_oputput(client, message.content, response_format)
+                return format_output(client, message.content, response_format)
             else:
                 return message.content
-        #responses.append(message)
-        chat_history.messages.append(Message(role=message['role'], content=message['content']))
+                
+        # Add assistant message with tool calls to history
+        chat_history.messages.append(Message(
+            role=message.role, 
+            content=message.content, 
+            tool_calls=[json.loads(x.model_dump_json()) for x in message.tool_calls] if message.tool_calls else None
+        ))
+        
         for tool_call in calls:
             if debug:
                 args = ",".join([f"{key}='{value}'" for key, value in tool_call.function.parsed_arguments.items()])
                 print(f"\033[1mFunction call\033[0m:{tool_call.function.name}({args})")
             response = execute_function(tool_call, package = package, functions=functions)
-            #responses.append(response)
-            chat_history.messages.append(Message(role = response['role'], content = response['content'], tool_call_id = response['tool_call_id']))
+            chat_history.messages.append(Message(
+                role=response['role'], 
+                content=response['content'], 
+                tool_call_id=response['tool_call_id']
+            ))
+    
+    # If we reach max iterations, return a message indicating this
+    return f"Maximum iterations ({max_iterations}) reached. The conversation may be stuck in a loop."
 def gptcall_chat(history: ChatHistory, package = None, api_key: Optional[str] = None, debug: bool = False, functions: List[Callable] = None, response_format = None) -> Optional[str]:
     '''
     Calls a function from the given package based on the user prompt and
@@ -432,7 +483,7 @@ def gptcall_chat(history: ChatHistory, package = None, api_key: Optional[str] = 
         message, calls = execute_openai_with_tools(client, chat_history=history, tools_json=tools, package = package, debug = debug)
         if message.content is not None:
             if response_format:
-                return format_oputput(client, message.content, response_format)
+                return format_output(client, message.content, response_format)
             else:
                 return message.content
         
